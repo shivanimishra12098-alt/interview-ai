@@ -1,0 +1,14 @@
+{
+  "fullName": "John Doe",
+  "initials": "JD",
+  "role": "AI Engineering Candidate",
+  "cohort": "31-Day AI Engineering Cohort",
+  "status": "Active",
+  "day": 19,
+  "totalDays": 31,
+  "streak": 8,
+  "daysCompleted": 19,
+  "interviewsCompleted": 13,
+  "averageScore": 86,
+  "projectsCompleted": 5
+}

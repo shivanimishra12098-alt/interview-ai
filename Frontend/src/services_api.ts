@@ -1,55 +1,80 @@
 import { evaluateAnswer as localEvaluate, EvalResult } from './evaluator'
 
 const BASE = import.meta.env.VITE_API_BASE || ''
+const PROFILE_STORAGE_KEY = 'candidateProfile_v1'
 
-async function postJSON(path: string, body: any) {
+async function requestJSON(path: string, init: RequestInit = {}): Promise<any> {
   const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
     credentials: 'include',
+    ...init,
   })
-  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
-  return res.json()
+  const text = await res.text()
+  if (!res.ok) throw new Error(`${res.status}: ${text || res.statusText}`)
+  if (!text) return null
+  return JSON.parse(text)
+}
+
+function readLocalProfile(): any | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function writeLocalProfile(profile: any) {
+  try {
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile))
+  } catch {
+    // ignore storage failures
+  }
 }
 
 export async function evaluateAnswer(question: string, answer: string): Promise<EvalResult> {
-  if (!BASE) return localEvaluate(question, answer)
   try {
-    const json = await postJSON('/api/evaluate', { question, answer })
+    const json = await requestJSON('/api/evaluate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, answer }),
+    })
     return json as EvalResult
-  } catch (err) {
+  } catch {
     return localEvaluate(question, answer)
   }
 }
 
 export async function getProfile(): Promise<any> {
-  if (!BASE) {
-    try {
-      const raw = localStorage.getItem('candidateProfile_v1')
-      return raw ? JSON.parse(raw) : null
-    } catch (e) {
-      return null
+  try {
+    const profile = await requestJSON('/api/profile')
+    if (profile) {
+      writeLocalProfile(profile)
+      return profile
     }
+  } catch {
+    // fall back to the local profile cache
   }
-  const res = await fetch(`${BASE}/api/profile`, { credentials: 'include' })
-  if (!res.ok) throw new Error('Failed to fetch profile')
-  return res.json()
+
+  return readLocalProfile()
 }
 
 export async function saveProfile(profile: any): Promise<any> {
-  if (!BASE) {
-    localStorage.setItem('candidateProfile_v1', JSON.stringify(profile))
-    return profile
+  try {
+    const saved = await requestJSON('/api/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profile),
+    })
+    if (saved) {
+      writeLocalProfile(saved)
+      return saved
+    }
+  } catch {
+    // fall back to local storage when the backend is unavailable
   }
-  const res = await fetch(`${BASE}/api/profile`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify(profile),
-  })
-  if (!res.ok) throw new Error('Failed to save profile')
-  return res.json()
+
+  writeLocalProfile(profile)
+  return profile
 }
 
 export default { evaluateAnswer, getProfile, saveProfile }

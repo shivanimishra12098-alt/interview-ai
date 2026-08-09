@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import ProgressBar from '../components/ProgressBar'
-
-const LOCAL_KEY = 'candidateProfile_v1'
+import { getProfile, saveProfile as persistProfile } from '../services_api'
 
 const defaultProfile = {
   fullName: 'John Doe',
@@ -54,27 +53,6 @@ const defaultProfile = {
   ],
 }
 
-function useLocalProfile() {
-  const [profile, setProfile] = useState(() => {
-    try {
-      const raw = localStorage.getItem(LOCAL_KEY)
-      return raw ? JSON.parse(raw) : defaultProfile
-    } catch (e) {
-      return defaultProfile
-    }
-  })
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(profile))
-    } catch (e) {
-      // ignore
-    }
-  }, [profile])
-
-  return [profile, setProfile] as const
-}
-
 function sparkline(values: number[], color = 'rgba(139,92,246,0.95)') {
   const w = 160
   const h = 40
@@ -94,14 +72,32 @@ function sparkline(values: number[], color = 'rgba(139,92,246,0.95)') {
 }
 
 export default function Profile() {
-  const [profile, setProfile] = useLocalProfile()
+  const [profile, setProfile] = useState(defaultProfile)
   const [editOpen, setEditOpen] = useState(false)
-  const [form, setForm] = useState(() => ({ ...profile }))
+  const [form, setForm] = useState(() => ({ ...defaultProfile }))
+  const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
-    setForm({ ...profile })
-  }, [profile])
+    let active = true
+
+    async function loadProfile() {
+      try {
+        const remoteProfile = await getProfile()
+        if (!active) return
+        const nextProfile = { ...defaultProfile, ...(remoteProfile || {}) }
+        setProfile(nextProfile)
+        setForm(nextProfile)
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    void loadProfile()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const weeks = useMemo(() => {
     const days = Array.from({ length: 31 }, (_, i) => i + 1)
@@ -110,13 +106,28 @@ export default function Profile() {
     return groups
   }, [])
 
-  function saveProfile() {
-    setProfile({ ...profile, ...form })
+  async function saveProfile() {
+    const nextProfile = { ...profile, ...form }
+    setProfile(nextProfile)
+    setForm(nextProfile)
     setEditOpen(false)
+    try {
+      await persistProfile(nextProfile)
+    } catch (error) {
+      console.error('Unable to save profile', error)
+    }
   }
 
   function openDay(d: number) {
     navigate(`/cohort/day/${d}`)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-bg p-6 flex items-center justify-center text-white">
+        <div className="glass-card p-6 text-center">Loading profile…</div>
+      </div>
+    )
   }
 
   return (
@@ -192,7 +203,6 @@ export default function Profile() {
                       const isCompleted = d < profile.day
                       const isCurrent = d === profile.day
                       const label = (() => {
-                        // pick text per your spec
                         const texts: Record<number, string> = {
                           1: 'AI Engineering Fundamentals',
                           2: 'LLM Fundamentals',

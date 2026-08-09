@@ -7,12 +7,14 @@ import Button from '../components/Button'
 import TopicBadge from '../components/TopicBadge'
 import { useInterviews } from '../context/InterviewContext'
 import { useToast } from '../context/ToastContext'
+import { useCandidate } from '../context/CandidateContext.tsx'
 
 export default function InterviewResult() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { getRecord, updateRecord } = useInterviews()
   const { showToast } = useToast()
+  const { candidate } = useCandidate()
 
   const record = id ? getRecord(id) : undefined
   const [draftSummary, setDraftSummary] = useState('')
@@ -46,7 +48,7 @@ export default function InterviewResult() {
     const lines = [
       `AI Interviewer — Feedback Report`,
       `================================`,
-      `Candidate: John Doe`,
+      `Candidate: ${candidate.name}`,
       `Interview: ${record.name}`,
       `Type: ${record.type}  |  Difficulty: ${record.difficulty}`,
       `Topics: ${record.topics.join(', ')}`,
@@ -204,7 +206,7 @@ export default function InterviewResult() {
         <dl className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
           <div>
             <dt className="text-slate-500 text-xs">Candidate</dt>
-            <dd className="text-slate-200 mt-1">John Doe</dd>
+            <dd className="text-slate-200 mt-1">{candidate.name}</dd>
           </div>
           <div>
             <dt className="text-slate-500 text-xs">Questions Attempted</dt>
@@ -234,3 +236,4 @@ export default function InterviewResult() {
     </DashboardLayout>
   )
 }
+ 

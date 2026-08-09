@@ -15,10 +15,12 @@ import CandidateProfile from './pages/CandidateProfile'
 import { SettingsProvider } from './context/SettingsContext'
 import { InterviewProvider } from './context/InterviewContext'
 import { ToastProvider } from './context/ToastContext'
+import { CandidateProvider } from './context/CandidateContext'
 
 export default function App() {
   return (
     <SettingsProvider>
+      <CandidateProvider>
       <ToastProvider>
         <InterviewProvider>
           <Routes>
@@ -38,6 +40,8 @@ export default function App() {
           </Routes>
         </InterviewProvider>
       </ToastProvider>
+      </CandidateProvider>
     </SettingsProvider>
   )
 }
+ 

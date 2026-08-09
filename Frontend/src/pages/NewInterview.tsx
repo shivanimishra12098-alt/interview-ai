@@ -7,6 +7,7 @@ import { INTERVIEW_TYPES, TOPIC_LIST } from '../data/mockData'
 import { useInterviews } from '../context/InterviewContext'
 import { useSettings } from '../context/SettingsContext'
 import { useToast } from '../context/ToastContext'
+import { startInterview } from '../services_api'
 import type { Difficulty, InterviewConfig, InterviewMode, InterviewType } from '../types'
 
 const TYPE_ICONS: Record<InterviewType, typeof Code2> = {
@@ -35,12 +36,13 @@ export default function NewInterview() {
   const [questionCount, setQuestionCount] = useState<number>(settings.defaultQuestionCount)
   const [mode, setMode] = useState<InterviewMode>(settings.adaptiveQuestions ? 'Adaptive AI' : 'Standard')
   const [error, setError] = useState('')
+  const [starting, setStarting] = useState(false)
 
   const toggleTopic = (topic: string) => {
     setTopics((prev) => (prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]))
   }
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (topics.length === 0) {
       setError('Select at least one topic to continue.')
       showToast('Please select at least one topic.', 'error')
@@ -50,9 +52,21 @@ export default function NewInterview() {
 
     const config: InterviewConfig = { type, difficulty, topics, questionCount, mode }
     setDraftConfig(config)
+    setStarting(true)
 
-    const id = `int-${Date.now()}`
-    navigate(`/interview/${id}`)
+    try {
+      // Ask the backend to create a real interview session. If VITE_API_BASE isn't
+      // configured, or the call fails, we fall back to the previous fully-local
+      // flow (LiveInterview generates its own mock plan) so the app still works
+      // as a demo without a backend.
+      const { sessionId, firstQuestion } = await startInterview(config)
+      navigate(`/interview/${sessionId}`, { state: { sessionId, firstQuestion } })
+    } catch (err) {
+      const id = `int-${Date.now()}`
+      navigate(`/interview/${id}`)
+    } finally {
+      setStarting(false)
+    }
   }
 
   return (
@@ -164,9 +178,10 @@ export default function NewInterview() {
 
         <button
           onClick={handleStart}
-          className="mt-10 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-8 py-3.5 text-sm font-medium text-white shadow-glow hover:brightness-110 transition-all"
+          disabled={starting}
+          className="mt-10 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-8 py-3.5 text-sm font-medium text-white shadow-glow hover:brightness-110 transition-all disabled:opacity-60 disabled:cursor-wait"
         >
-          Start Interview <ArrowRight size={17} />
+          {starting ? 'Starting…' : 'Start Interview'} <ArrowRight size={17} />
         </button>
       </div>
     </DashboardLayout>

@@ -7,11 +7,13 @@ import EmptyState from '../components/EmptyState'
 import { useInterviews } from '../context/InterviewContext'
 import { RECOMMENDED_TOPICS } from '../data/mockData'
 import { useToast } from '../context/ToastContext'
+import { useCandidate } from '../context/CandidateContext'
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const { history } = useInterviews()
   const { showToast } = useToast()
+  const { candidate } = useCandidate()
 
   const completed = history.filter((h) => h.status === 'Completed')
   const avgScore = completed.length
@@ -24,7 +26,7 @@ export default function Dashboard() {
     <DashboardLayout>
       <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
         <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white">Welcome back, John 👋</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-white">Welcome back, {candidate.name.split(' ')[0]} 👋</h1>
           <p className="text-slate-400 mt-1.5 text-sm sm:text-base">Ready to sharpen your technical skills?</p>
         </div>
         <button
@@ -115,3 +117,4 @@ export default function Dashboard() {
     </DashboardLayout>
   )
 }
+ 

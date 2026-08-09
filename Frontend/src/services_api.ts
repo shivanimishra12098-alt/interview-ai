@@ -1,6 +1,55 @@
-import { evaluateAnswer as localEvaluate, EvalResult } from './evaluator'
+import { evaluateAnswer as localEvaluate } from './evaluator'
+import type { EvalResult } from './evaluator'
+import type { InterviewConfig } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE || ''
+
+export function isBackendConnected() {
+  return Boolean(BASE)
+}
+
+export type StartInterviewResponse = {
+  sessionId: string
+  firstQuestion: string
+}
+
+export type NextTurnResponse = {
+  // 'question' = advance to a new question, 'retry'/'followup' = stay on the current one, 'done' = interview finished
+  action: 'question' | 'retry' | 'followup' | 'done'
+  question?: string
+  evaluation: EvalResult
+}
+
+// TODO: confirm this matches your backend's actual start-interview route + payload/response shape.
+export async function startInterview(config: InterviewConfig): Promise<StartInterviewResponse> {
+  if (!BASE) {
+    // No backend configured — caller falls back to fully local mock behavior.
+    throw new Error('no-backend')
+  }
+  return postJSON('/api/interview/start', config) as Promise<StartInterviewResponse>
+}
+
+// TODO: confirm this matches your backend's continuation endpoint. Sends the candidate's answer for the
+// current session/question and expects back both the evaluation AND what to do next (ask a new question,
+// retry, follow up, or finish) so the backend — not the frontend — drives adaptivity.
+export async function submitAnswerAndAdvance(
+  sessionId: string,
+  questionText: string,
+  answer: string,
+): Promise<NextTurnResponse> {
+  if (!BASE) {
+    throw new Error('no-backend')
+  }
+  return postJSON('/api/interview/answer', { sessionId, question: questionText, answer }) as Promise<NextTurnResponse>
+}
+
+// TODO: confirm this matches your backend's finish/report endpoint.
+export async function endInterview(sessionId: string): Promise<any> {
+  if (!BASE) {
+    throw new Error('no-backend')
+  }
+  return postJSON('/api/interview/end', { sessionId })
+}
 
 async function postJSON(path: string, body: any) {
   const res = await fetch(`${BASE}${path}`, {
@@ -52,4 +101,4 @@ export async function saveProfile(profile: any): Promise<any> {
   return res.json()
 }
 
-export default { evaluateAnswer, getProfile, saveProfile }
+export default { evaluateAnswer, getProfile, saveProfile, startInterview, submitAnswerAndAdvance, endInterview, isBackendConnected }
